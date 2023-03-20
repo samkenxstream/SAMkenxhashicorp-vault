@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import { create } from 'ember-cli-page-object';
 import { settled, click } from '@ember/test-helpers';
 import { module, test } from 'qunit';
@@ -27,7 +32,7 @@ const authAccessor = async function (path) {
 };
 
 const setupUser = async function () {
-  let authMethodPath = `userpass-${new Date().getTime()}`;
+  const authMethodPath = `userpass-${new Date().getTime()}`;
   await authAccessor(authMethodPath);
 };
 

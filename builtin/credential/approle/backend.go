@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package approle
 
 import (
@@ -17,6 +20,9 @@ const (
 	secretIDAccessorPrefix      = "accessor/"
 	secretIDAccessorLocalPrefix = "accessor_local/"
 )
+
+// ReportedVersion is used to report a specific version to Vault.
+var ReportedVersion = ""
 
 type backend struct {
 	*framework.Backend
@@ -111,8 +117,9 @@ func Backend(conf *logical.BackendConfig) (*backend, error) {
 				pathTidySecretID(b),
 			},
 		),
-		Invalidate:  b.invalidate,
-		BackendType: logical.TypeCredential,
+		Invalidate:     b.invalidate,
+		BackendType:    logical.TypeCredential,
+		RunningVersion: ReportedVersion,
 	}
 	return b, nil
 }

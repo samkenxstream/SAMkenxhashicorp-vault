@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 'use strict';
 /* eslint-disable node/no-extraneous-require */
 /* eslint-disable ember/no-string-prototype-extensions */
@@ -20,7 +25,7 @@ module.exports = {
   ],
 
   filesPath: function () {
-    let filesDirectory = 'files';
+    const filesDirectory = 'files';
 
     return path.join(this.path, filesDirectory);
   },

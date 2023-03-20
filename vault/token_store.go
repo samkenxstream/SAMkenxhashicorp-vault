@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package vault
 
 import (
@@ -71,8 +74,8 @@ const (
 	// any namespace information
 	TokenLength = 24
 
-	// MaxNsIdLength is the maximum namespace ID length (4 characters prepended by a ".")
-	MaxNsIdLength = 5
+	// MaxNsIdLength is the maximum namespace ID length (5 characters prepended by a ".")
+	MaxNsIdLength = 6
 
 	// TokenPrefixLength is the length of the new token prefixes ("hvs.", "hvb.",
 	// and "hvr.")
@@ -88,6 +91,10 @@ const (
 	// MaxRetrySSCTokensGenerationCounter is the maximum number of retries the TokenStore
 	// will make when attempting to get the SSCTokensGenerationCounter
 	MaxRetrySSCTokensGenerationCounter = 3
+
+	// IgnoreForBilling used for HCP Link batch tokens and inserted into the InternalMeta
+	// Tokens created for the purpose of HCP Link should bypass counting for billing purposes
+	IgnoreForBilling = "ignore_for_billing"
 )
 
 var (
@@ -157,6 +164,70 @@ func (ts *TokenStore) paths() []*framework.Path {
 		{
 			Pattern: "create-orphan$",
 
+			Fields: map[string]*framework.FieldSchema{
+				"role_name": {
+					Type:        framework.TypeString,
+					Description: "Name of the role",
+				},
+				"display_name": {
+					Type:        framework.TypeString,
+					Description: "Name to associate with this token",
+				},
+				"explicit_max_ttl": {
+					Type:        framework.TypeString,
+					Description: "Explicit Max TTL of this token",
+				},
+				"entity_alias": {
+					Type:        framework.TypeString,
+					Description: "Name of the entity alias to associate with this token",
+				},
+				"num_uses": {
+					Type:        framework.TypeInt,
+					Description: "Max number of uses for this token",
+				},
+				"period": {
+					Type:        framework.TypeString,
+					Description: "Renew period",
+				},
+				"renewable": {
+					Type:        framework.TypeBool,
+					Description: "Allow token to be renewed past its initial TTL up to system/mount maximum TTL",
+				},
+				"ttl": {
+					Type:        framework.TypeString,
+					Description: "Time to live for this token",
+				},
+				"type": {
+					Type:        framework.TypeString,
+					Description: "Token type",
+				},
+				"no_default_policy": {
+					Type:        framework.TypeBool,
+					Description: "Do not include default policy for this token",
+				},
+				"id": {
+					Type:        framework.TypeString,
+					Description: "Value for the token",
+				},
+				"metadata": {
+					Type:        framework.TypeMap,
+					Description: "Arbitrary key=value metadata to associate with the token",
+				},
+				"no_parent": {
+					Type:        framework.TypeBool,
+					Description: "Create the token with no parent",
+				},
+				"policies": {
+					Type:        framework.TypeStringSlice,
+					Description: "List of policies for the token",
+				},
+				"format": {
+					Type:        framework.TypeString,
+					Query:       true,
+					Description: "Return json formatted output",
+				},
+			},
+
 			Callbacks: map[logical.Operation]framework.OperationFunc{
 				logical.UpdateOperation: ts.handleCreateOrphan,
 			},
@@ -173,6 +244,63 @@ func (ts *TokenStore) paths() []*framework.Path {
 					Type:        framework.TypeString,
 					Description: "Name of the role",
 				},
+				"display_name": {
+					Type:        framework.TypeString,
+					Description: "Name to associate with this token",
+				},
+				"explicit_max_ttl": {
+					Type:        framework.TypeString,
+					Description: "Explicit Max TTL of this token",
+				},
+				"entity_alias": {
+					Type:        framework.TypeString,
+					Description: "Name of the entity alias to associate with this token",
+				},
+				"num_uses": {
+					Type:        framework.TypeInt,
+					Description: "Max number of uses for this token",
+				},
+				"period": {
+					Type:        framework.TypeString,
+					Description: "Renew period",
+				},
+				"renewable": {
+					Type:        framework.TypeBool,
+					Description: "Allow token to be renewed past its initial TTL up to system/mount maximum TTL",
+				},
+				"ttl": {
+					Type:        framework.TypeString,
+					Description: "Time to live for this token",
+				},
+				"type": {
+					Type:        framework.TypeString,
+					Description: "Token type",
+				},
+				"no_default_policy": {
+					Type:        framework.TypeBool,
+					Description: "Do not include default policy for this token",
+				},
+				"id": {
+					Type:        framework.TypeString,
+					Description: "Value for the token",
+				},
+				"metadata": {
+					Type:        framework.TypeMap,
+					Description: "Arbitrary key=value metadata to associate with the token",
+				},
+				"no_parent": {
+					Type:        framework.TypeBool,
+					Description: "Create the token with no parent",
+				},
+				"policies": {
+					Type:        framework.TypeStringSlice,
+					Description: "List of policies for the token",
+				},
+				"format": {
+					Type:        framework.TypeString,
+					Query:       true,
+					Description: "Return json formatted output",
+				},
 			},
 
 			Callbacks: map[logical.Operation]framework.OperationFunc{
@@ -185,6 +313,66 @@ func (ts *TokenStore) paths() []*framework.Path {
 
 		{
 			Pattern: "create$",
+
+			Fields: map[string]*framework.FieldSchema{
+				"display_name": {
+					Type:        framework.TypeString,
+					Description: "Name to associate with this token",
+				},
+				"explicit_max_ttl": {
+					Type:        framework.TypeString,
+					Description: "Explicit Max TTL of this token",
+				},
+				"entity_alias": {
+					Type:        framework.TypeString,
+					Description: "Name of the entity alias to associate with this token",
+				},
+				"num_uses": {
+					Type:        framework.TypeInt,
+					Description: "Max number of uses for this token",
+				},
+				"period": {
+					Type:        framework.TypeString,
+					Description: "Renew period",
+				},
+				"renewable": {
+					Type:        framework.TypeBool,
+					Description: "Allow token to be renewed past its initial TTL up to system/mount maximum TTL",
+				},
+				"ttl": {
+					Type:        framework.TypeString,
+					Description: "Time to live for this token",
+				},
+				"type": {
+					Type:        framework.TypeString,
+					Description: "Token type",
+				},
+				"no_default_policy": {
+					Type:        framework.TypeBool,
+					Description: "Do not include default policy for this token",
+				},
+				"id": {
+					Type:        framework.TypeString,
+					Description: "Value for the token",
+				},
+				"metadata": {
+					Type:        framework.TypeMap,
+					Description: "Arbitrary key=value metadata to associate with the token",
+				},
+				"no_parent": {
+					Type:        framework.TypeBool,
+					Description: "Create the token with no parent",
+				},
+				"policies": {
+					Type:        framework.TypeStringSlice,
+					Description: "List of policies for the token",
+				},
+				"format": {
+					Type:        framework.TypeString,
+					Query:       true,
+					Description: "Return json formatted output",
+				},
+			},
 
 			Callbacks: map[logical.Operation]framework.OperationFunc{
 				logical.UpdateOperation: ts.handleCreate,
@@ -920,7 +1108,7 @@ func (ts *TokenStore) create(ctx context.Context, entry *logical.TokenEntry) err
 			entry.ID = fmt.Sprintf("%s.%s", entry.ID, tokenNS.ID)
 		}
 
-		if tokenNS.ID != namespace.RootNamespaceID || strings.HasPrefix(entry.ID, consts.ServiceTokenPrefix) {
+		if tokenNS.ID != namespace.RootNamespaceID || strings.HasPrefix(entry.ID, consts.ServiceTokenPrefix) || strings.HasPrefix(entry.ID, consts.LegacyServiceTokenPrefix) {
 			if entry.CubbyholeID == "" {
 				cubbyholeID, err := base62.Random(TokenLength)
 				if err != nil {
@@ -1372,6 +1560,10 @@ func (ts *TokenStore) lookupInternal(ctx context.Context, id string, salted, tai
 		return ts.lookupBatchToken(ctx, id)
 	}
 
+	// Before we check to see if this is an SSCT, keep the old value in case
+	// we need to check the full SSCT flow later.
+	originalToken := id
+
 	// lookupInternal is called internally with tokens that oftentimes come from request
 	// parameters that we cannot really guess. Most notably, these calls come from either
 	// validateWrappedToken and/or lookupTokenTainted, used in the wrapping token logic.
@@ -1515,6 +1707,17 @@ func (ts *TokenStore) lookupInternal(ctx context.Context, id string, salted, tai
 	// It's any kind of expiring token with no lease, immediately delete it
 	case le == nil:
 		if ts.core.perfStandby {
+			// If we're a perf standby with a token but without the lease entry, then
+			// we have the WALs for the token but not the lease entry. We should check
+			// the SSCToken again to validate our state. We will receive a 412 if we
+			// don't have the requisite state.
+			// We set unauth to 'false' here as we want to validate the full SSCT flow
+			// and if we're at this point in the method, we have reason to need the token.
+			_, err = ts.core.CheckSSCToken(ctx, originalToken, false, ts.core.perfStandby)
+			if err != nil {
+				return nil, err
+			}
+			// If we don't have a state error, and we're still here, return a 500.
 			return nil, fmt.Errorf("no lease entry found for token that ought to have one, possible eventual consistency issue")
 		}
 
@@ -1880,25 +2083,6 @@ func (ts *TokenStore) revokeTreeInternal(ctx context.Context, id string) error {
 	}
 
 	return nil
-}
-
-func (c *Core) IsBatchTokenCreationRequest(ctx context.Context, path string) (bool, error) {
-	c.stateLock.RLock()
-	defer c.stateLock.RUnlock()
-
-	if c.tokenStore == nil {
-		return false, fmt.Errorf("no token store")
-	}
-
-	name := strings.TrimPrefix(path, "auth/token/create/")
-	roleEntry, err := c.tokenStore.tokenStoreRole(ctx, name)
-	if err != nil {
-		return false, err
-	}
-	if roleEntry == nil {
-		return false, fmt.Errorf("unknown role")
-	}
-	return roleEntry.TokenType == logical.TokenTypeBatch, nil
 }
 
 // handleCreateAgainstRole handles the auth/token/create path for a role
@@ -2986,9 +3170,22 @@ func (ts *TokenStore) handleCreateCommon(ctx context.Context, req *logical.Reque
 		resp.AddWarning("Supplying a custom ID for the token uses the weaker SHA1 hashing instead of the more secure SHA2-256 HMAC for token obfuscation. SHA1 hashed tokens on the wire leads to less secure lookups.")
 	}
 
-	// Create the token
-	if err := ts.create(ctx, &te); err != nil {
-		return logical.ErrorResponse(err.Error()), logical.ErrInvalidRequest
+	// check if we are perfStandby, and if so forward the service token
+	// creation to the active node
+	var roleName string
+	if role != nil {
+		roleName = role.Name
+	}
+	if te.Type == logical.TokenTypeService && ts.core.perfStandby {
+		forwardedTokenEntry, err := forwardCreateTokenRegisterAuth(ctx, ts.core, &te, roleName, renewable, periodToUse, explicitMaxTTLToUse)
+		if err != nil {
+			return logical.ErrorResponse(err.Error()), ErrInternalError
+		}
+		te = *forwardedTokenEntry
+	} else {
+		if err := ts.create(ctx, &te); err != nil {
+			return logical.ErrorResponse(err.Error()), logical.ErrInvalidRequest
+		}
 	}
 
 	// Count the successful token creation.
@@ -3024,6 +3221,12 @@ func (ts *TokenStore) handleCreateCommon(ctx context.Context, req *logical.Reque
 		CreationPath:   te.Path,
 		TokenType:      te.Type,
 		Orphan:         te.Parent == "",
+	}
+
+	// We have registered the auth at this point if the token is of service
+	// type and core is perfStandby.
+	if te.Type == logical.TokenTypeService && ts.core.perfStandby && te.ExternalID != "" {
+		resp.Auth.ClientToken = te.ExternalID
 	}
 
 	for _, p := range te.Policies {

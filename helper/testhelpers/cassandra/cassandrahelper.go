@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package cassandra
 
 import (
@@ -90,9 +93,10 @@ func PrepareTestContainer(t *testing.T, opts ...ContainerOpt) (Host, func()) {
 	}
 
 	containerCfg := &containerConfig{
-		imageName: "cassandra",
-		version:   "3.11",
-		env:       []string{"CASSANDRA_BROADCAST_ADDRESS=127.0.0.1"},
+		imageName:     "docker.mirror.hashicorp.services/library/cassandra",
+		containerName: "cassandra",
+		version:       "3.11",
+		env:           []string{"CASSANDRA_BROADCAST_ADDRESS=127.0.0.1"},
 	}
 
 	for _, opt := range opts {

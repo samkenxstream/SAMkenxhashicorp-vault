@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import { currentRouteName, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -29,14 +34,18 @@ module('Acceptance | secrets/ssh', function (hooks) {
     const path = await mountAndNav(assert);
     await editPage.createOTPRole('role');
     await settled();
-    assert.equal(currentRouteName(), 'vault.cluster.secrets.backend.show', 'redirects to the show page');
+    assert.strictEqual(
+      currentRouteName(),
+      'vault.cluster.secrets.backend.show',
+      'redirects to the show page'
+    );
     assert.ok(showPage.generateIsPresent, 'shows the generate button');
 
     await showPage.visit({ backend: path, id: 'role' });
     await settled();
     await showPage.generate();
     await settled();
-    assert.equal(
+    assert.strictEqual(
       currentRouteName(),
       'vault.cluster.secrets.backend.credentials',
       'navs to the credentials page'
@@ -44,8 +53,8 @@ module('Acceptance | secrets/ssh', function (hooks) {
 
     await listPage.visitRoot({ backend: path });
     await settled();
-    assert.equal(listPage.secrets.length, 1, 'shows role in the list');
-    let secret = listPage.secrets.objectAt(0);
+    assert.strictEqual(listPage.secrets.length, 1, 'shows role in the list');
+    const secret = listPage.secrets.objectAt(0);
     await secret.menuToggle();
     assert.ok(listPage.menuItems.length > 0, 'shows links in the menu');
   });
@@ -59,7 +68,11 @@ module('Acceptance | secrets/ssh', function (hooks) {
     await settled();
     await showPage.deleteRole();
     await settled();
-    assert.equal(currentRouteName(), 'vault.cluster.secrets.backend.list-root', 'redirects to list page');
+    assert.strictEqual(
+      currentRouteName(),
+      'vault.cluster.secrets.backend.list-root',
+      'redirects to list page'
+    );
     assert.ok(listPage.backendIsEmpty, 'no roles listed');
   });
 
@@ -68,14 +81,18 @@ module('Acceptance | secrets/ssh', function (hooks) {
     const path = await mountAndNav(assert);
     await editPage.createOTPRole('role');
     await settled();
-    assert.equal(currentRouteName(), 'vault.cluster.secrets.backend.show', 'redirects to the show page');
+    assert.strictEqual(
+      currentRouteName(),
+      'vault.cluster.secrets.backend.show',
+      'redirects to the show page'
+    );
     assert.ok(showPage.generateIsPresent, 'shows the generate button');
 
     await showPage.visit({ backend: path, id: 'role' });
     await settled();
     await showPage.generate();
     await settled();
-    assert.equal(
+    assert.strictEqual(
       currentRouteName(),
       'vault.cluster.secrets.backend.credentials',
       'navs to the credentials page'

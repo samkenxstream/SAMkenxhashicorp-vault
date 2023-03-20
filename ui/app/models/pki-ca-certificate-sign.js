@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import { attr } from '@ember-data/model';
 import { copy } from 'ember-copy';
 import { computed } from '@ember/object';
@@ -14,7 +19,7 @@ export default Certificate.extend({
   maxPathLength: attr('number', {
     defaultValue: -1,
   }),
-  permittedDnsNames: attr('string', {
+  permittedDnsDomains: attr('string', {
     label: 'Permitted DNS domains',
   }),
   ou: attr({
@@ -51,7 +56,7 @@ export default Certificate.extend({
           'ttl',
           'excludeCnFromSans',
           'maxPathLength',
-          'permittedDnsNames',
+          'permittedDnsDomains',
           'ou',
           'organization',
           'otherSans',

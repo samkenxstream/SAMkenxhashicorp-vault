@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package ssh
 
 import (
@@ -13,8 +16,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/vault/api"
+	"github.com/hashicorp/vault/helper/testhelpers/corehelpers"
 	"github.com/hashicorp/vault/sdk/logical"
-
 	"golang.org/x/crypto/ssh"
 
 	"github.com/hashicorp/vault/builtin/credential/userpass"
@@ -23,19 +26,20 @@ import (
 	vaulthttp "github.com/hashicorp/vault/http"
 	"github.com/hashicorp/vault/vault"
 	"github.com/mitchellh/mapstructure"
+
+	"github.com/stretchr/testify/require"
 )
 
 const (
-	testIP              = "127.0.0.1"
-	testUserName        = "vaultssh"
-	testAdminUser       = "vaultssh"
-	testCaKeyType       = "ca"
-	testOTPKeyType      = "otp"
-	testDynamicKeyType  = "dynamic"
-	testCIDRList        = "127.0.0.1/32"
-	testAtRoleName      = "test@RoleName"
-	testDynamicRoleName = "testDynamicRoleName"
-	testOTPRoleName     = "testOTPRoleName"
+	testIP            = "127.0.0.1"
+	testUserName      = "vaultssh"
+	testMultiUserName = "vaultssh,otherssh"
+	testAdminUser     = "vaultssh"
+	testCaKeyType     = "ca"
+	testOTPKeyType    = "otp"
+	testCIDRList      = "127.0.0.1/32"
+	testAtRoleName    = "test@RoleName"
+	testOTPRoleName   = "testOTPRoleName"
 	// testKeyName is the name of the entry that will be written to SSHMOUNTPOINT/ssh/keys
 	testKeyName = "testKeyName"
 	// testSharedPrivateKey is the value of the entry that will be written to SSHMOUNTPOINT/ssh/keys
@@ -136,7 +140,7 @@ func prepareTestContainer(t *testing.T, tag, caPublicKeyPEM string) (func(), str
 	}
 	runner, err := docker.NewServiceRunner(docker.RunOptions{
 		ContainerName: "openssh",
-		ImageRepo:     "linuxserver/openssh-server",
+		ImageRepo:     "docker.mirror.hashicorp.services/linuxserver/openssh-server",
 		ImageTag:      tag,
 		Env: []string{
 			"DOCKER_MODS=linuxserver/mods:openssh-server-openssh-client",
@@ -322,11 +326,45 @@ func TestBackend_AllowedUsers(t *testing.T) {
 	}
 }
 
+func TestBackend_AllowedDomainsTemplate(t *testing.T) {
+	testAllowedDomainsTemplate := "{{ identity.entity.metadata.ssh_username }}.example.com"
+	expectedValidPrincipal := "foo." + testUserName + ".example.com"
+	testAllowedPrincipalsTemplate(
+		t, testAllowedDomainsTemplate,
+		expectedValidPrincipal,
+		map[string]string{
+			"ssh_username": testUserName,
+		},
+		map[string]interface{}{
+			"key_type":                 testCaKeyType,
+			"algorithm_signer":         "rsa-sha2-256",
+			"allow_host_certificates":  true,
+			"allow_subdomains":         true,
+			"allowed_domains":          testAllowedDomainsTemplate,
+			"allowed_domains_template": true,
+		},
+		map[string]interface{}{
+			"cert_type":        "host",
+			"public_key":       testCAPublicKey,
+			"valid_principals": expectedValidPrincipal,
+		},
+	)
+}
+
 func TestBackend_AllowedUsersTemplate(t *testing.T) {
 	testAllowedUsersTemplate(t,
 		"{{ identity.entity.metadata.ssh_username }}",
 		testUserName, map[string]string{
 			"ssh_username": testUserName,
+		},
+	)
+}
+
+func TestBackend_MultipleAllowedUsersTemplate(t *testing.T) {
+	testAllowedUsersTemplate(t,
+		"{{ identity.entity.metadata.ssh_username }}",
+		testUserName, map[string]string{
+			"ssh_username": testMultiUserName,
 		},
 	)
 }
@@ -340,12 +378,153 @@ func TestBackend_AllowedUsersTemplate_WithStaticPrefix(t *testing.T) {
 	)
 }
 
+func TestBackend_DefaultUserTemplate(t *testing.T) {
+	testDefaultUserTemplate(t,
+		"{{ identity.entity.metadata.ssh_username }}",
+		testUserName,
+		map[string]string{
+			"ssh_username": testUserName,
+		},
+	)
+}
+
+func TestBackend_DefaultUserTemplate_WithStaticPrefix(t *testing.T) {
+	testDefaultUserTemplate(t,
+		"user-{{ identity.entity.metadata.ssh_username }}",
+		"user-"+testUserName,
+		map[string]string{
+			"ssh_username": testUserName,
+		},
+	)
+}
+
+func TestBackend_DefaultUserTemplateFalse_AllowedUsersTemplateTrue(t *testing.T) {
+	cluster, userpassToken := getSshCaTestCluster(t, testUserName)
+	defer cluster.Cleanup()
+	client := cluster.Cores[0].Client
+
+	// set metadata "ssh_username" to userpass username
+	tokenLookupResponse, err := client.Logical().Write("/auth/token/lookup", map[string]interface{}{
+		"token": userpassToken,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	entityID := tokenLookupResponse.Data["entity_id"].(string)
+	_, err = client.Logical().Write("/identity/entity/id/"+entityID, map[string]interface{}{
+		"metadata": map[string]string{
+			"ssh_username": testUserName,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = client.Logical().Write("ssh/roles/my-role", map[string]interface{}{
+		"key_type":                testCaKeyType,
+		"allow_user_certificates": true,
+		"default_user":            "{{identity.entity.metadata.ssh_username}}",
+		// disable user templating but not allowed_user_template and the request should fail
+		"default_user_template":  false,
+		"allowed_users":          "{{identity.entity.metadata.ssh_username}}",
+		"allowed_users_template": true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// sign SSH key as userpass user
+	client.SetToken(userpassToken)
+	_, err = client.Logical().Write("ssh/sign/my-role", map[string]interface{}{
+		"public_key": testCAPublicKey,
+	})
+	if err == nil {
+		t.Errorf("signing request should fail when default_user is not in the allowed_users list, because allowed_users_template is true and default_user_template is not")
+	}
+
+	expectedErrStr := "{{identity.entity.metadata.ssh_username}} is not a valid value for valid_principals"
+	if !strings.Contains(err.Error(), expectedErrStr) {
+		t.Errorf("expected error to include %q but it was: %q", expectedErrStr, err.Error())
+	}
+}
+
+func TestBackend_DefaultUserTemplateFalse_AllowedUsersTemplateFalse(t *testing.T) {
+	cluster, userpassToken := getSshCaTestCluster(t, testUserName)
+	defer cluster.Cleanup()
+	client := cluster.Cores[0].Client
+
+	// set metadata "ssh_username" to userpass username
+	tokenLookupResponse, err := client.Logical().Write("/auth/token/lookup", map[string]interface{}{
+		"token": userpassToken,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	entityID := tokenLookupResponse.Data["entity_id"].(string)
+	_, err = client.Logical().Write("/identity/entity/id/"+entityID, map[string]interface{}{
+		"metadata": map[string]string{
+			"ssh_username": testUserName,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = client.Logical().Write("ssh/roles/my-role", map[string]interface{}{
+		"key_type":                testCaKeyType,
+		"allow_user_certificates": true,
+		"default_user":            "{{identity.entity.metadata.ssh_username}}",
+		"default_user_template":   false,
+		"allowed_users":           "{{identity.entity.metadata.ssh_username}}",
+		"allowed_users_template":  false,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// sign SSH key as userpass user
+	client.SetToken(userpassToken)
+	signResponse, err := client.Logical().Write("ssh/sign/my-role", map[string]interface{}{
+		"public_key": testCAPublicKey,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// check for the expected valid principals of certificate
+	signedKey := signResponse.Data["signed_key"].(string)
+	key, _ := base64.StdEncoding.DecodeString(strings.Split(signedKey, " ")[1])
+	parsedKey, err := ssh.ParsePublicKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actualPrincipals := parsedKey.(*ssh.Certificate).ValidPrincipals
+	if len(actualPrincipals) < 1 {
+		t.Fatal(
+			fmt.Sprintf("No ValidPrincipals returned: should have been %v",
+				[]string{"{{identity.entity.metadata.ssh_username}}"}),
+		)
+	}
+	if len(actualPrincipals) > 1 {
+		t.Error(
+			fmt.Sprintf("incorrect number ValidPrincipals, expected only 1: %v should be %v",
+				actualPrincipals, []string{"{{identity.entity.metadata.ssh_username}}"}),
+		)
+	}
+	if actualPrincipals[0] != "{{identity.entity.metadata.ssh_username}}" {
+		t.Fatal(
+			fmt.Sprintf("incorrect ValidPrincipals: %v should be %v",
+				actualPrincipals, []string{"{{identity.entity.metadata.ssh_username}}"}),
+		)
+	}
+}
+
 func newTestingFactory(t *testing.T) func(ctx context.Context, conf *logical.BackendConfig) (logical.Backend, error) {
 	return func(ctx context.Context, conf *logical.BackendConfig) (logical.Backend, error) {
 		defaultLeaseTTLVal := 2 * time.Minute
 		maxLeaseTTLVal := 10 * time.Minute
 		return Factory(context.Background(), &logical.BackendConfig{
-			Logger:      vault.NewTestLogger(t),
+			Logger:      corehelpers.NewTestLogger(t),
 			StorageView: &logical.InmemStorage{},
 			System: &logical.StaticSystemView{
 				DefaultLeaseTTLVal: defaultLeaseTTLVal,
@@ -361,36 +540,22 @@ func TestSSHBackend_Lookup(t *testing.T) {
 		"default_user": testUserName,
 		"cidr_list":    testCIDRList,
 	}
-	testDynamicRoleData := map[string]interface{}{
-		"key_type":     testDynamicKeyType,
-		"key":          testKeyName,
-		"admin_user":   testAdminUser,
-		"default_user": testAdminUser,
-		"cidr_list":    testCIDRList,
-	}
 	data := map[string]interface{}{
 		"ip": testIP,
 	}
 	resp1 := []string(nil)
 	resp2 := []string{testOTPRoleName}
-	resp3 := []string{testDynamicRoleName, testOTPRoleName}
-	resp4 := []string{testDynamicRoleName}
-	resp5 := []string{testAtRoleName}
+	resp3 := []string{testAtRoleName}
 	logicaltest.Test(t, logicaltest.TestCase{
 		LogicalFactory: newTestingFactory(t),
 		Steps: []logicaltest.TestStep{
 			testLookupRead(t, data, resp1),
 			testRoleWrite(t, testOTPRoleName, testOTPRoleData),
 			testLookupRead(t, data, resp2),
-			testNamedKeysWrite(t, testKeyName, testSharedPrivateKey),
-			testRoleWrite(t, testDynamicRoleName, testDynamicRoleData),
-			testLookupRead(t, data, resp3),
 			testRoleDelete(t, testOTPRoleName),
-			testLookupRead(t, data, resp4),
-			testRoleDelete(t, testDynamicRoleName),
 			testLookupRead(t, data, resp1),
-			testRoleWrite(t, testAtRoleName, testDynamicRoleData),
-			testLookupRead(t, data, resp5),
+			testRoleWrite(t, testAtRoleName, testOTPRoleData),
+			testLookupRead(t, data, resp3),
 			testRoleDelete(t, testAtRoleName),
 			testLookupRead(t, data, resp1),
 		},
@@ -439,39 +604,6 @@ func TestSSHBackend_RoleList(t *testing.T) {
 	})
 }
 
-func TestSSHBackend_DynamicKeyCreate(t *testing.T) {
-	cleanup, sshAddress := prepareTestContainer(t, "", "")
-	defer cleanup()
-
-	host, port, err := net.SplitHostPort(sshAddress)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	testDynamicRoleData := map[string]interface{}{
-		"key_type":     testDynamicKeyType,
-		"key":          testKeyName,
-		"admin_user":   testAdminUser,
-		"default_user": testAdminUser,
-		"cidr_list":    host + "/32",
-		"port":         port,
-	}
-	data := map[string]interface{}{
-		"username": testUserName,
-		"ip":       host,
-	}
-	logicaltest.Test(t, logicaltest.TestCase{
-		LogicalFactory: newTestingFactory(t),
-		Steps: []logicaltest.TestStep{
-			testNamedKeysWrite(t, testKeyName, testSharedPrivateKey),
-			testRoleWrite(t, testDynamicRoleName, testDynamicRoleData),
-			testCredsWrite(t, testDynamicRoleName, data, false, sshAddress),
-			testRoleWrite(t, testAtRoleName, testDynamicRoleData),
-			testCredsWrite(t, testAtRoleName, data, false, sshAddress),
-		},
-	})
-}
-
 func TestSSHBackend_OTPRoleCrud(t *testing.T) {
 	testOTPRoleData := map[string]interface{}{
 		"key_type":     testOTPKeyType,
@@ -495,50 +627,6 @@ func TestSSHBackend_OTPRoleCrud(t *testing.T) {
 			testRoleRead(t, testAtRoleName, respOTPRoleData),
 			testRoleDelete(t, testAtRoleName),
 			testRoleRead(t, testAtRoleName, nil),
-		},
-	})
-}
-
-func TestSSHBackend_DynamicRoleCrud(t *testing.T) {
-	testDynamicRoleData := map[string]interface{}{
-		"key_type":     testDynamicKeyType,
-		"key":          testKeyName,
-		"admin_user":   testAdminUser,
-		"default_user": testAdminUser,
-		"cidr_list":    testCIDRList,
-	}
-	respDynamicRoleData := map[string]interface{}{
-		"cidr_list":      testCIDRList,
-		"port":           22,
-		"install_script": DefaultPublicKeyInstallScript,
-		"key_bits":       1024,
-		"key":            testKeyName,
-		"admin_user":     testUserName,
-		"default_user":   testUserName,
-		"key_type":       testDynamicKeyType,
-	}
-	logicaltest.Test(t, logicaltest.TestCase{
-		LogicalFactory: newTestingFactory(t),
-		Steps: []logicaltest.TestStep{
-			testNamedKeysWrite(t, testKeyName, testSharedPrivateKey),
-			testRoleWrite(t, testDynamicRoleName, testDynamicRoleData),
-			testRoleRead(t, testDynamicRoleName, respDynamicRoleData),
-			testRoleDelete(t, testDynamicRoleName),
-			testRoleRead(t, testDynamicRoleName, nil),
-			testRoleWrite(t, testAtRoleName, testDynamicRoleData),
-			testRoleRead(t, testAtRoleName, respDynamicRoleData),
-			testRoleDelete(t, testAtRoleName),
-			testRoleRead(t, testAtRoleName, nil),
-		},
-	})
-}
-
-func TestSSHBackend_NamedKeysCrud(t *testing.T) {
-	logicaltest.Test(t, logicaltest.TestCase{
-		LogicalFactory: newTestingFactory(t),
-		Steps: []logicaltest.TestStep{
-			testNamedKeysWrite(t, testKeyName, testSharedPrivateKey),
-			testNamedKeysDelete(t),
 		},
 	})
 }
@@ -596,24 +684,14 @@ func TestSSHBackend_ConfigZeroAddressCRUD(t *testing.T) {
 		"default_user": testUserName,
 		"cidr_list":    testCIDRList,
 	}
-	testDynamicRoleData := map[string]interface{}{
-		"key_type":     testDynamicKeyType,
-		"key":          testKeyName,
-		"admin_user":   testAdminUser,
-		"default_user": testAdminUser,
-		"cidr_list":    testCIDRList,
-	}
 	req1 := map[string]interface{}{
 		"roles": testOTPRoleName,
 	}
 	resp1 := map[string]interface{}{
 		"roles": []string{testOTPRoleName},
 	}
-	req2 := map[string]interface{}{
-		"roles": fmt.Sprintf("%s,%s", testOTPRoleName, testDynamicRoleName),
-	}
 	resp2 := map[string]interface{}{
-		"roles": []string{testOTPRoleName, testDynamicRoleName},
+		"roles": []string{testOTPRoleName},
 	}
 	resp3 := map[string]interface{}{
 		"roles": []string{},
@@ -625,11 +703,7 @@ func TestSSHBackend_ConfigZeroAddressCRUD(t *testing.T) {
 			testRoleWrite(t, testOTPRoleName, testOTPRoleData),
 			testConfigZeroAddressWrite(t, req1),
 			testConfigZeroAddressRead(t, resp1),
-			testNamedKeysWrite(t, testKeyName, testSharedPrivateKey),
-			testRoleWrite(t, testDynamicRoleName, testDynamicRoleData),
-			testConfigZeroAddressWrite(t, req2),
 			testConfigZeroAddressRead(t, resp2),
-			testRoleDelete(t, testDynamicRoleName),
 			testConfigZeroAddressRead(t, resp1),
 			testRoleDelete(t, testOTPRoleName),
 			testConfigZeroAddressRead(t, resp3),
@@ -659,43 +733,6 @@ func TestSSHBackend_CredsForZeroAddressRoles_otp(t *testing.T) {
 			testCredsWrite(t, testOTPRoleName, data, false, ""),
 			testConfigZeroAddressDelete(t),
 			testCredsWrite(t, testOTPRoleName, data, true, ""),
-		},
-	})
-}
-
-func TestSSHBackend_CredsForZeroAddressRoles_dynamic(t *testing.T) {
-	cleanup, sshAddress := prepareTestContainer(t, "", "")
-	defer cleanup()
-
-	host, port, err := net.SplitHostPort(sshAddress)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	dynamicRoleData := map[string]interface{}{
-		"key_type":     testDynamicKeyType,
-		"key":          testKeyName,
-		"admin_user":   testAdminUser,
-		"default_user": testAdminUser,
-		"port":         port,
-	}
-	data := map[string]interface{}{
-		"username": testUserName,
-		"ip":       host,
-	}
-	req2 := map[string]interface{}{
-		"roles": testDynamicRoleName,
-	}
-	logicaltest.Test(t, logicaltest.TestCase{
-		LogicalFactory: newTestingFactory(t),
-		Steps: []logicaltest.TestStep{
-			testNamedKeysWrite(t, testKeyName, testSharedPrivateKey),
-			testRoleWrite(t, testDynamicRoleName, dynamicRoleData),
-			testCredsWrite(t, testDynamicRoleName, data, true, sshAddress),
-			testConfigZeroAddressWrite(t, req2),
-			testCredsWrite(t, testDynamicRoleName, data, false, sshAddress),
-			testConfigZeroAddressDelete(t),
-			testCredsWrite(t, testDynamicRoleName, data, true, sshAddress),
 		},
 	})
 }
@@ -1893,7 +1930,7 @@ func getSshCaTestCluster(t *testing.T, userIdentity string) (*vault.TestCluster,
 	return cluster, userpassToken
 }
 
-func testAllowedUsersTemplate(t *testing.T, testAllowedUsersTemplate string,
+func testDefaultUserTemplate(t *testing.T, testDefaultUserTemplate string,
 	expectedValidPrincipal string, testEntityMetadata map[string]string,
 ) {
 	cluster, userpassToken := getSshCaTestCluster(t, testUserName)
@@ -1918,7 +1955,9 @@ func testAllowedUsersTemplate(t *testing.T, testAllowedUsersTemplate string,
 	_, err = client.Logical().Write("ssh/roles/my-role", map[string]interface{}{
 		"key_type":                testCaKeyType,
 		"allow_user_certificates": true,
-		"allowed_users":           testAllowedUsersTemplate,
+		"default_user":            testDefaultUserTemplate,
+		"default_user_template":   true,
+		"allowed_users":           testDefaultUserTemplate,
 		"allowed_users_template":  true,
 	})
 	if err != nil {
@@ -1928,8 +1967,7 @@ func testAllowedUsersTemplate(t *testing.T, testAllowedUsersTemplate string,
 	// sign SSH key as userpass user
 	client.SetToken(userpassToken)
 	signResponse, err := client.Logical().Write("ssh/sign/my-role", map[string]interface{}{
-		"public_key":       testCAPublicKey,
-		"valid_principals": expectedValidPrincipal,
+		"public_key": testCAPublicKey,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -1949,6 +1987,76 @@ func testAllowedUsersTemplate(t *testing.T, testAllowedUsersTemplate string,
 				actualPrincipals, []string{expectedValidPrincipal}),
 		)
 	}
+}
+
+func testAllowedPrincipalsTemplate(t *testing.T, testAllowedDomainsTemplate string,
+	expectedValidPrincipal string, testEntityMetadata map[string]string,
+	roleConfigPayload map[string]interface{}, signingPayload map[string]interface{},
+) {
+	cluster, userpassToken := getSshCaTestCluster(t, testUserName)
+	defer cluster.Cleanup()
+	client := cluster.Cores[0].Client
+
+	// set metadata "ssh_username" to userpass username
+	tokenLookupResponse, err := client.Logical().Write("/auth/token/lookup", map[string]interface{}{
+		"token": userpassToken,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	entityID := tokenLookupResponse.Data["entity_id"].(string)
+	_, err = client.Logical().Write("/identity/entity/id/"+entityID, map[string]interface{}{
+		"metadata": testEntityMetadata,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = client.Logical().Write("ssh/roles/my-role", roleConfigPayload)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// sign SSH key as userpass user
+	client.SetToken(userpassToken)
+	signResponse, err := client.Logical().Write("ssh/sign/my-role", signingPayload)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// check for the expected valid principals of certificate
+	signedKey := signResponse.Data["signed_key"].(string)
+	key, _ := base64.StdEncoding.DecodeString(strings.Split(signedKey, " ")[1])
+	parsedKey, err := ssh.ParsePublicKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actualPrincipals := parsedKey.(*ssh.Certificate).ValidPrincipals
+	if actualPrincipals[0] != expectedValidPrincipal {
+		t.Fatal(
+			fmt.Sprintf("incorrect ValidPrincipals: %v should be %v",
+				actualPrincipals, []string{expectedValidPrincipal}),
+		)
+	}
+}
+
+func testAllowedUsersTemplate(t *testing.T, testAllowedUsersTemplate string,
+	expectedValidPrincipal string, testEntityMetadata map[string]string,
+) {
+	testAllowedPrincipalsTemplate(
+		t, testAllowedUsersTemplate,
+		expectedValidPrincipal, testEntityMetadata,
+		map[string]interface{}{
+			"key_type":                testCaKeyType,
+			"allow_user_certificates": true,
+			"allowed_users":           testAllowedUsersTemplate,
+			"allowed_users_template":  true,
+		},
+		map[string]interface{}{
+			"public_key":       testCAPublicKey,
+			"valid_principals": expectedValidPrincipal,
+		},
+	)
 }
 
 func configCaStep(caPublicKey, caPrivateKey string) logicaltest.TestStep {
@@ -2167,23 +2275,6 @@ func testVerifyWrite(t *testing.T, data map[string]interface{}, expected map[str
 	}
 }
 
-func testNamedKeysWrite(t *testing.T, name, key string) logicaltest.TestStep {
-	return logicaltest.TestStep{
-		Operation: logical.UpdateOperation,
-		Path:      fmt.Sprintf("keys/%s", name),
-		Data: map[string]interface{}{
-			"key": key,
-		},
-	}
-}
-
-func testNamedKeysDelete(t *testing.T) logicaltest.TestStep {
-	return logicaltest.TestStep{
-		Operation: logical.DeleteOperation,
-		Path:      fmt.Sprintf("keys/%s", testKeyName),
-	}
-}
-
 func testLookupRead(t *testing.T, data map[string]interface{}, expected []string) logicaltest.TestStep {
 	return logicaltest.TestStep{
 		Operation: logical.UpdateOperation,
@@ -2248,10 +2339,6 @@ func testRoleRead(t *testing.T, roleName string, expected map[string]interface{}
 				if d.KeyType != expected["key_type"] || d.DefaultUser != expected["default_user"] || d.CIDRList != expected["cidr_list"] {
 					return fmt.Errorf("data mismatch. bad: %#v", resp)
 				}
-			case "dynamic":
-				if d.AdminUser != expected["admin_user"] || d.CIDRList != expected["cidr_list"] || d.KeyName != expected["key"] || d.KeyType != expected["key_type"] {
-					return fmt.Errorf("data mismatch. bad: %#v", resp)
-				}
 			default:
 				return fmt.Errorf("unknown key type. bad: %#v", resp)
 			}
@@ -2292,7 +2379,7 @@ func testCredsWrite(t *testing.T, roleName string, data map[string]interface{}, 
 				}
 				return nil
 			}
-			if roleName == testDynamicRoleName || roleName == testAtRoleName {
+			if roleName == testAtRoleName {
 				var d struct {
 					Key string `mapstructure:"key"`
 				}
@@ -2321,4 +2408,60 @@ func testCredsWrite(t *testing.T, roleName string, data map[string]interface{}, 
 			return nil
 		},
 	}
+}
+
+func TestBackend_CleanupDynamicHostKeys(t *testing.T) {
+	config := logical.TestBackendConfig()
+	config.StorageView = &logical.InmemStorage{}
+
+	b, err := Backend(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.Setup(context.Background(), config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Running on a clean mount shouldn't do anything.
+	cleanRequest := &logical.Request{
+		Operation: logical.DeleteOperation,
+		Path:      "tidy/dynamic-keys",
+		Storage:   config.StorageView,
+	}
+
+	resp, err := b.HandleRequest(context.Background(), cleanRequest)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NotNil(t, resp.Data)
+	require.NotNil(t, resp.Data["message"])
+	require.Contains(t, resp.Data["message"], "0 of 0")
+
+	// Write a bunch of bogus entries.
+	for i := 0; i < 15; i++ {
+		data := map[string]interface{}{
+			"host": "localhost",
+			"key":  "nothing-to-see-here",
+		}
+		entry, err := logical.StorageEntryJSON(fmt.Sprintf("%vexample-%v", keysStoragePrefix, i), &data)
+		require.NoError(t, err)
+		err = config.StorageView.Put(context.Background(), entry)
+		require.NoError(t, err)
+	}
+
+	// Should now have 15
+	resp, err = b.HandleRequest(context.Background(), cleanRequest)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NotNil(t, resp.Data)
+	require.NotNil(t, resp.Data["message"])
+	require.Contains(t, resp.Data["message"], "15 of 15")
+
+	// Should have none left.
+	resp, err = b.HandleRequest(context.Background(), cleanRequest)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NotNil(t, resp.Data)
+	require.NotNil(t, resp.Data["message"])
+	require.Contains(t, resp.Data["message"], "0 of 0")
 }

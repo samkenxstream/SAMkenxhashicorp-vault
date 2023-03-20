@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import { module, test } from 'qunit';
 import { visit } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
@@ -51,7 +56,7 @@ module('Acceptance | Enterprise | License banner warnings', function (hooks) {
         return [response, { 'Content-Type': 'application/json' }, JSON.stringify(healthResp)];
       });
       this.get('/v1/sys/internal/ui/feature-flags', this.passthrough);
-      // this.get('/v1/sys/health', this.passthrough);
+      this.get('/v1/sys/internal/ui/mounts', this.passthrough);
       this.get('/v1/sys/seal-status', this.passthrough);
       this.get('/v1/sys/license/features', this.passthrough);
     });
@@ -66,6 +71,7 @@ module('Acceptance | Enterprise | License banner warnings', function (hooks) {
         return [response, { 'Content-Type': 'application/json' }, JSON.stringify(healthResp)];
       });
       this.get('/v1/sys/internal/ui/feature-flags', this.passthrough);
+      this.get('/v1/sys/internal/ui/mounts', this.passthrough);
       this.get('/v1/sys/seal-status', this.passthrough);
       this.get('/v1/sys/license/features', this.passthrough);
     });
@@ -81,6 +87,7 @@ module('Acceptance | Enterprise | License banner warnings', function (hooks) {
         return [response, { 'Content-Type': 'application/json' }, JSON.stringify(healthResp)];
       });
       this.get('/v1/sys/internal/ui/feature-flags', this.passthrough);
+      this.get('/v1/sys/internal/ui/mounts', this.passthrough);
       this.get('/v1/sys/seal-status', this.passthrough);
       this.get('/v1/sys/license/features', this.passthrough);
     });

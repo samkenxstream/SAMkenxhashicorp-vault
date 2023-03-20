@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import { currentRouteName, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -18,7 +23,7 @@ module('Acceptance | settings/configure/secrets/pki', function (hooks) {
     await settled();
     await page.visit({ backend: path });
     await settled();
-    assert.equal(
+    assert.strictEqual(
       currentRouteName(),
       'vault.cluster.settings.configure-secret-backend.section',
       'redirects from the index'

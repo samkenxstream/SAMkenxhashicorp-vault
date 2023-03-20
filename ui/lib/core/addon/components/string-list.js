@@ -1,8 +1,14 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import ArrayProxy from '@ember/array/proxy';
 import Component from '@glimmer/component';
 import autosize from 'autosize';
 import { action } from '@ember/object';
 import { set } from '@ember/object';
+import { next } from '@ember/runloop';
 
 /**
  * @module StringList
@@ -18,6 +24,7 @@ import { set } from '@ember/object';
  * @param {string} helpText - Text displayed as a tooltip.
  * @param {string} type=array - Optional type for inputValue.
  * @param {string} attrName - We use this to check the type so we can modify the tooltip content.
+ * @param {string} subText - Text below the label.
  */
 
 export default class StringList extends Component {
@@ -37,8 +44,10 @@ export default class StringList extends Component {
     });
     this.type = this.args.type || 'array';
     this.setType();
-    this.toList();
-    this.addInput();
+    next(() => {
+      this.toList();
+      this.addInput();
+    });
   }
 
   setType() {
@@ -60,7 +69,7 @@ export default class StringList extends Component {
 
   toVal() {
     const inputs = this.inputList.filter((x) => x.value).mapBy('value');
-    if (this.format === 'string') {
+    if (this.args.type === 'string') {
       return inputs.join(',');
     }
     return inputs;

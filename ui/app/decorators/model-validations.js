@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 /* eslint-disable no-console */
 import validators from 'vault/utils/validators';
 import { get } from '@ember/object';
@@ -22,7 +27,7 @@ import { get } from '@ember/object';
  * state represents the error state of the properties defined in the validations object
  * const { isValid, errors } = state[propertyKeyName];
  * isValid represents the validity of the property
- * errors will be populated with messages defined in the validations object when validations fail
+ * errors will be populated with messages defined in the validations object when validations fail. message must be a complete sentence (and include punctuation)
  * since a property can have multiple validations, errors is always returned as an array
  *
  *** basic example
@@ -30,7 +35,8 @@ import { get } from '@ember/object';
  * import Model from '@ember-data/model';
  * import withModelValidations from 'vault/decorators/model-validations';
  *
- * const validations = { foo: [{ type: 'presence', message: 'foo is a required field' }] };
+ * Notes: all messages need to have a period at the end of them.
+ * const validations = { foo: [{ type: 'presence', message: 'foo is a required field.' }] };
  * @withModelValidations(validations)
  * class SomeModel extends Model { foo = null; }
  *
@@ -42,7 +48,7 @@ import { get } from '@ember/object';
  *
  *** example using custom validator
  *
- * const validations = { foo: [{ validator: (model) => model.bar.includes('test') ? model.foo : false, message: 'foo is required if bar includes test' }] };
+ * const validations = { foo: [{ validator: (model) => model.bar.includes('test') ? model.foo : false, message: 'foo is required if bar includes test.' }] };
  * @withModelValidations(validations)
  * class SomeModel extends Model { foo = false; bar = ['foo', 'baz']; }
  *
@@ -50,7 +56,11 @@ import { get } from '@ember/object';
  * const { isValid, state } = model.validate();
  * -> isValid = false;
  * -> state.foo.isValid = false;
- * -> state.foo.errors = ['foo is required if bar includes test'];
+ * -> state.foo.errors = ['foo is required if bar includes test.'];
+ *
+ * *** example adding class in hbs file
+ * all form-validations need to have a red border around them. Add this by adding a conditional class 'has-error-border'
+ * class="input field {{if this.errors.name.errors 'has-error-border'}}"
  */
 
 export function withModelValidations(validations) {
@@ -121,7 +131,7 @@ export function withModelValidations(validations) {
       generateErrorCountMessage(errorCount) {
         if (errorCount < 1) return null;
         // returns count specific message: 'There is an error/are N errors with this form.'
-        let isPlural = errorCount > 1 ? `are ${errorCount} errors` : false;
+        const isPlural = errorCount > 1 ? `are ${errorCount} errors` : false;
         return `There ${isPlural ? isPlural : 'is an error'} with this form.`;
       }
     };

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package aws
 
 import (
@@ -562,7 +565,7 @@ func (r *awsRoleEntry) validate() error {
 			errors = multierror.Append(errors, fmt.Errorf("user_path parameter only valid for %s credential type", iamUserCred))
 		}
 		if !userPathRegex.MatchString(r.UserPath) {
-			errors = multierror.Append(errors, fmt.Errorf("The specified value for user_path is invalid. It must match '%s' regexp", userPathRegex.String()))
+			errors = multierror.Append(errors, fmt.Errorf("The specified value for user_path is invalid. It must match %q regexp", userPathRegex.String()))
 		}
 	}
 

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 .info-table-row {
   box-shadow: 0 1px 0 $grey-light;
   margin: 0;
@@ -22,7 +27,6 @@
 
   .column {
     align-self: center;
-    padding-left: 0px;
     padding: $spacing-m;
 
     &.info-table-row-edit {

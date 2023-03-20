@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import { currentRouteName, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -17,15 +22,15 @@ module('Acceptance | settings/auth/enable', function (hooks) {
     const path = `approle-${new Date().getTime()}`;
     const type = 'approle';
     await page.visit();
-    assert.equal(currentRouteName(), 'vault.cluster.settings.auth.enable');
+    assert.strictEqual(currentRouteName(), 'vault.cluster.settings.auth.enable');
     await page.enable(type, path);
     await settled();
-    await assert.equal(
+    await assert.strictEqual(
       page.flash.latestMessage,
       `Successfully mounted the ${type} auth method at ${path}.`,
       'success flash shows'
     );
-    assert.equal(
+    assert.strictEqual(
       currentRouteName(),
       'vault.cluster.settings.auth.configure.section',
       'redirects to the auth config page'

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package aws
 
 import (
@@ -207,7 +210,7 @@ func Test_combinePolicyDocuments(t *testing.T) {
 				`{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "NotAction": "ec2:DescribeAvailabilityZones", "Resource": "*"}]}`,
 			},
 			expectedOutput: `{"Version": "2012-10-17","Statement":[{"Effect": "Allow","NotAction": "ec2:DescribeAvailabilityZones",	"Resource": "*"}]}`,
-			expectedErr: false,
+			expectedErr:    false,
 		},
 		{
 			description: "one blank policy",

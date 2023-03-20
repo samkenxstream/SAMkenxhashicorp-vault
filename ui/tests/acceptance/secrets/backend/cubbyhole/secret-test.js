@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import { currentRouteName, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -23,13 +28,21 @@ module('Acceptance | secrets/cubbyhole/create', function (hooks) {
     const kvPath = `cubbyhole-kv-${new Date().getTime()}`;
     await listPage.visitRoot({ backend: 'cubbyhole' });
     await settled();
-    assert.equal(currentRouteName(), 'vault.cluster.secrets.backend.list-root', 'navigates to the list page');
+    assert.strictEqual(
+      currentRouteName(),
+      'vault.cluster.secrets.backend.list-root',
+      'navigates to the list page'
+    );
 
     await listPage.create();
     await settled();
     await editPage.createSecret(kvPath, 'foo', 'bar');
     await settled();
-    assert.equal(currentRouteName(), 'vault.cluster.secrets.backend.show', 'redirects to the show page');
+    assert.strictEqual(
+      currentRouteName(),
+      'vault.cluster.secrets.backend.show',
+      'redirects to the show page'
+    );
     assert.ok(showPage.editIsPresent, 'shows the edit button');
   });
 });

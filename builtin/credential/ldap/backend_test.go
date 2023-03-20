@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package ldap
 
 import (
@@ -382,19 +385,19 @@ func TestLdapAuthBackend_UserPolicies(t *testing.T) {
 }
 
 /*
- * Acceptance test for LDAP Auth Method
- *
- * The tests here rely on a docker LDAP server:
- * [https://github.com/rroemhild/docker-test-openldap]
- *
- * ...as well as existence of a person object, `cn=Hermes Conrad,dc=example,dc=com`,
- *    which is a member of a group, `cn=admin_staff,ou=people,dc=example,dc=com`
- *
- * Querying the server from the command line:
- *   $ docker run --privileged -d -p 389:389 --name ldap --rm rroemhild/test-openldap
- *   $ ldapsearch -x -H ldap://localhost -b dc=planetexpress,dc=com -s sub uid=hermes
- *   $ ldapsearch -x -H ldap://localhost -b dc=planetexpress,dc=com -s sub \
-         'member=cn=Hermes Conrad,ou=people,dc=planetexpress,dc=com'
+* Acceptance test for LDAP Auth Method
+*
+* The tests here rely on a docker LDAP server:
+* [https://github.com/rroemhild/docker-test-openldap]
+*
+* ...as well as existence of a person object, `cn=Hermes Conrad,dc=example,dc=com`,
+*    which is a member of a group, `cn=admin_staff,ou=people,dc=example,dc=com`
+*
+  - Querying the server from the command line:
+  - $ docker run --privileged -d -p 389:389 --name ldap --rm rroemhild/test-openldap
+  - $ ldapsearch -x -H ldap://localhost -b dc=planetexpress,dc=com -s sub uid=hermes
+  - $ ldapsearch -x -H ldap://localhost -b dc=planetexpress,dc=com -s sub \
+    'member=cn=Hermes Conrad,ou=people,dc=planetexpress,dc=com'
 */
 func factory(t *testing.T) logical.Backend {
 	defaultLeaseTTLVal := time.Hour * 24
@@ -783,27 +786,27 @@ func TestBackend_configDefaultsAfterUpdate(t *testing.T) {
 					cfg := resp.Data
 					defaultGroupFilter := "(|(memberUid={{.Username}})(member={{.UserDN}})(uniqueMember={{.UserDN}}))"
 					if cfg["groupfilter"] != defaultGroupFilter {
-						t.Errorf("Default mismatch: groupfilter. Expected: '%s', received :'%s'", defaultGroupFilter, cfg["groupfilter"])
+						t.Errorf("Default mismatch: groupfilter. Expected: %q, received :%q", defaultGroupFilter, cfg["groupfilter"])
 					}
 
 					defaultGroupAttr := "cn"
 					if cfg["groupattr"] != defaultGroupAttr {
-						t.Errorf("Default mismatch: groupattr. Expected: '%s', received :'%s'", defaultGroupAttr, cfg["groupattr"])
+						t.Errorf("Default mismatch: groupattr. Expected: %q, received :%q", defaultGroupAttr, cfg["groupattr"])
 					}
 
 					defaultUserAttr := "cn"
 					if cfg["userattr"] != defaultUserAttr {
-						t.Errorf("Default mismatch: userattr. Expected: '%s', received :'%s'", defaultUserAttr, cfg["userattr"])
+						t.Errorf("Default mismatch: userattr. Expected: %q, received :%q", defaultUserAttr, cfg["userattr"])
 					}
 
 					defaultUserFilter := "({{.UserAttr}}={{.Username}})"
 					if cfg["userfilter"] != defaultUserFilter {
-						t.Errorf("Default mismatch: userfilter. Expected: '%s', received :'%s'", defaultUserFilter, cfg["userfilter"])
+						t.Errorf("Default mismatch: userfilter. Expected: %q, received :%q", defaultUserFilter, cfg["userfilter"])
 					}
 
 					defaultDenyNullBind := true
 					if cfg["deny_null_bind"] != defaultDenyNullBind {
-						t.Errorf("Default mismatch: deny_null_bind. Expected: '%t', received :'%s'", defaultDenyNullBind, cfg["deny_null_bind"])
+						t.Errorf("Default mismatch: deny_null_bind. Expected: '%t', received :%q", defaultDenyNullBind, cfg["deny_null_bind"])
 					}
 
 					return nil
@@ -1231,6 +1234,7 @@ func TestLdapAuthBackend_ConfigUpgrade(t *testing.T) {
 			UsePre111GroupCNBehavior: new(bool),
 			RequestTimeout:           cfg.RequestTimeout,
 			UsernameAsAlias:          false,
+			DerefAliases:             "never",
 		},
 	}
 

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package fakegcsserver
 
 import (
@@ -27,7 +30,7 @@ func PrepareTestContainer(t *testing.T, version string) (func(), docker.ServiceC
 	}
 	runner, err := docker.NewServiceRunner(docker.RunOptions{
 		ContainerName: "fake-gcs-server",
-		ImageRepo:     "fsouza/fake-gcs-server",
+		ImageRepo:     "docker.mirror.hashicorp.services/fsouza/fake-gcs-server",
 		ImageTag:      version,
 		Cmd:           []string{"-scheme", "http", "-public-host", "storage.gcs.127.0.0.1.nip.io:4443"},
 		Ports:         []string{"4443/tcp"},

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package vault
 
 import (
@@ -10,6 +13,11 @@ import (
 	"github.com/hashicorp/vault/helper/timeutil"
 )
 
+// Test_ActivityLog_ComputeCurrentMonthForBillingPeriodInternal creates 3 months of hyperloglogs and fills them with
+// overlapping clients. The test calls computeCurrentMonthForBillingPeriodInternal with the current month map having
+// some overlap with the previous months. The test then verifies that the results have the correct number of entity and
+// non-entity clients. The test also calls computeCurrentMonthForBillingPeriodInternal with an empty current month map,
+// and verifies that the results are all 0.
 func Test_ActivityLog_ComputeCurrentMonthForBillingPeriodInternal(t *testing.T) {
 	// populate the first month with clients 1-10
 	monthOneHLL := hyperloglog.New()
@@ -124,5 +132,29 @@ func Test_ActivityLog_ComputeCurrentMonthForBillingPeriodInternal(t *testing.T) 
 	}
 	if monthRecord.NewClients.Counts.NonEntityClients != 4 {
 		t.Fatalf("wrong number of new non entity clients. Expected 4, got %d", monthRecord.NewClients.Counts.NonEntityClients)
+	}
+
+	// Attempt to compute current month when no records exist
+	endTime = time.Now().UTC()
+	startTime = timeutil.StartOfMonth(endTime)
+	emptyClientsMap := make(map[int64]*processMonth, 0)
+	monthRecord, err = a.computeCurrentMonthForBillingPeriodInternal(context.Background(), emptyClientsMap, mockHLLGetFunc, startTime, endTime)
+	if err != nil {
+		t.Fatalf("failed to compute empty current month, err: %v", err)
+	}
+
+	// We should have 0 entity clients, nonentity clients,new entity clients
+	// and new nonentity clients
+	if monthRecord.Counts.EntityClients != 0 {
+		t.Fatalf("wrong number of entity clients. Expected 0, got %d", monthRecord.Counts.EntityClients)
+	}
+	if monthRecord.Counts.NonEntityClients != 0 {
+		t.Fatalf("wrong number of non entity clients. Expected 0, got %d", monthRecord.Counts.NonEntityClients)
+	}
+	if monthRecord.NewClients.Counts.EntityClients != 0 {
+		t.Fatalf("wrong number of new entity clients. Expected 0, got %d", monthRecord.NewClients.Counts.EntityClients)
+	}
+	if monthRecord.NewClients.Counts.NonEntityClients != 0 {
+		t.Fatalf("wrong number of new non entity clients. Expected 0, got %d", monthRecord.NewClients.Counts.NonEntityClients)
 	}
 }

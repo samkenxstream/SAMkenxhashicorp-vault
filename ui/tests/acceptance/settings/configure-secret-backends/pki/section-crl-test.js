@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import { currentRouteName, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -18,11 +23,11 @@ module('Acceptance | settings/configure/secrets/pki/crl', function (hooks) {
     await settled();
     await page.visit({ backend: path, section: 'crl' });
     await settled();
-    assert.equal(currentRouteName(), 'vault.cluster.settings.configure-secret-backend.section');
+    assert.strictEqual(currentRouteName(), 'vault.cluster.settings.configure-secret-backend.section');
     await page.form.fillInUnit('h');
     await page.form.fillInValue(3);
     await page.form.submit();
     await settled();
-    assert.equal(page.lastMessage, 'The crl config for this backend has been updated.');
+    assert.strictEqual(page.lastMessage, 'The crl config for this backend has been updated.');
   });
 });

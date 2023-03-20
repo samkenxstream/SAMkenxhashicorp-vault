@@ -1,6 +1,14 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import TransformBase, { addToList, removeFromList } from './transform-edit-base';
+import { inject as service } from '@ember/service';
 
 export default TransformBase.extend({
+  flashMessages: service(),
+  store: service(),
   initialRoles: null,
 
   init() {
@@ -64,7 +72,7 @@ export default TransformBase.extend({
     const promises = updateRoles.map((r) => this.updateOrCreateRole(r, transformationId, backend));
 
     Promise.all(promises).then((results) => {
-      let hasError = results.find((role) => !!role.errorStatus);
+      const hasError = results.find((role) => !!role.errorStatus);
 
       if (hasError) {
         let message =
@@ -94,7 +102,7 @@ export default TransformBase.extend({
       event.preventDefault();
 
       this.applyChanges('save', () => {
-        const transformationId = this.model.id;
+        const transformationId = this.model.id || this.model.name;
         const newModelRoles = this.model.allowed_roles || [];
         const initialRoles = this.initialRoles || [];
 

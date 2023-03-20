@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import { module, test } from 'qunit';
 import { create } from 'ember-cli-page-object';
 import { setupApplicationTest } from 'ember-qunit';
@@ -30,7 +35,7 @@ const writeUserWithPolicy = async function (path) {
 };
 
 const setupUser = async function () {
-  let path = `userpass-${new Date().getTime()}`;
+  const path = `userpass-${new Date().getTime()}`;
   await writePolicy(path);
   await writeUserWithPolicy(path);
   await click('[data-test-save-config="true"]');
@@ -50,12 +55,12 @@ module('Acceptance | mfa-setup', function (hooks) {
     await click('[data-test-status-link="mfa"]');
   });
 
-  test('it should login through MFA and post to admin-generate and be able to restart the setup', async function (assert) {
+  test('it should login through MFA and post to generate and be able to restart the setup', async function (assert) {
     assert.expect(5);
     // the network requests required in this test
-    this.server.post('/identity/mfa/method/totp/admin-generate', (scheme, req) => {
+    this.server.post('/identity/mfa/method/totp/generate', (scheme, req) => {
       const json = JSON.parse(req.requestBody);
-      assert.equal(json.method_id, '123', 'sends the UUID value');
+      assert.strictEqual(json.method_id, '123', 'sends the UUID value');
       return {
         data: {
           barcode:
@@ -67,7 +72,7 @@ module('Acceptance | mfa-setup', function (hooks) {
     });
     this.server.post('/identity/mfa/method/totp/admin-destroy', (scheme, req) => {
       const json = JSON.parse(req.requestBody);
-      assert.equal(json.method_id, '123', 'sends the UUID value');
+      assert.strictEqual(json.method_id, '123', 'sends the UUID value');
       // returns nothing
       return {};
     });
@@ -82,7 +87,7 @@ module('Acceptance | mfa-setup', function (hooks) {
   test('it should show a warning if you enter in the same UUID without restarting the setup', async function (assert) {
     assert.expect(2);
     // the network requests required in this test
-    this.server.post('/identity/mfa/method/totp/admin-generate', () => {
+    this.server.post('/identity/mfa/method/totp/generate', () => {
       return {
         data: null,
         warnings: ['Entity already has a secret for MFA method “”'],

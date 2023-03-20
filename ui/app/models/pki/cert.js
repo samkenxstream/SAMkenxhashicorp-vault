@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import Model, { attr } from '@ember-data/model';
 import { alias } from '@ember/object/computed';
 import { computed } from '@ember/object';
@@ -96,7 +101,7 @@ export default Model.extend({
   }),
 
   attrs: computed('DISPLAY_FIELDS', 'certificate', 'csr', function () {
-    let keys = this.certificate || this.csr ? this.DISPLAY_FIELDS.slice(0) : [];
+    const keys = this.certificate || this.csr ? this.DISPLAY_FIELDS.slice(0) : [];
     return expandAttributeMeta(this, keys);
   }),
 

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package http
 
 import (
@@ -151,7 +154,10 @@ func TestSysInit_Put_ValidateParams(t *testing.T) {
 
 func TestSysInit_Put_ValidateParams_AutoUnseal(t *testing.T) {
 	testSeal := seal.NewTestSeal(nil)
-	autoSeal := vault.NewAutoSeal(testSeal)
+	autoSeal, err := vault.NewAutoSeal(testSeal)
+	if err != nil {
+		t.Fatal(err)
+	}
 	autoSeal.SetType("transit")
 
 	// Create the transit server.

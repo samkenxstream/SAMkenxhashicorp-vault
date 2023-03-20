@@ -1,4 +1,9 @@
 /**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
+/**
  * @module ClientsConfig
  * ClientsConfig components are used to show and edit the client count config information.
  *
@@ -58,7 +63,7 @@ export default class ConfigComponent extends Component {
 
   @action
   updateBooleanValue(attr, value) {
-    let valueToSet = value === true ? attr.options.trueValue : attr.options.falseValue;
+    const valueToSet = value === true ? attr.options.trueValue : attr.options.falseValue;
     this.args.model[attr.name] = valueToSet;
   }
 

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import { click, fillIn, find, currentURL, settled, visit, waitUntil, findAll } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -89,8 +94,8 @@ const keyTypes = [
   },
 ];
 
-let generateTransitKey = async function (key, now) {
-  let name = key.name(now);
+const generateTransitKey = async function (key, now) {
+  const name = key.name(now);
   await click('[data-test-secret-create]');
 
   await fillIn('[data-test-transit-key-name]', name);
@@ -142,7 +147,7 @@ const testConvergentEncryption = async function (assert, keyName) {
 
       assertAfterDecrypt: (key) => {
         assert.dom('.modal.is-active').exists(`${key}: Modal opens after decrypt`);
-        assert.equal(
+        assert.strictEqual(
           find('[data-test-encrypted-value="plaintext"]').innerText,
           'NaXud2QW7KjyK6Me9ggh+zmnCeBGdG93LQED49PtoOI=',
           `${key}: the ui shows the base64-encoded plaintext`
@@ -170,7 +175,7 @@ const testConvergentEncryption = async function (assert, keyName) {
       },
       assertAfterDecrypt: (key) => {
         assert.dom('.modal.is-active').exists(`${key}: Modal opens after decrypt`);
-        assert.equal(
+        assert.strictEqual(
           find('[data-test-encrypted-value="plaintext"]').innerText,
           'NaXud2QW7KjyK6Me9ggh+zmnCeBGdG93LQED49PtoOI=',
           `${key}: the ui shows the base64-encoded plaintext`
@@ -198,7 +203,7 @@ const testConvergentEncryption = async function (assert, keyName) {
       },
       assertAfterDecrypt: (key) => {
         assert.dom('.modal.is-active').exists(`${key}: Modal opens after decrypt`);
-        assert.equal(
+        assert.strictEqual(
           find('[data-test-encrypted-value="plaintext"]').innerText,
           encodeString('This is the secret'),
           `${key}: the ui decodes plaintext`
@@ -227,7 +232,7 @@ const testConvergentEncryption = async function (assert, keyName) {
       },
       assertAfterDecrypt: (key) => {
         assert.dom('.modal.is-active').exists(`${key}: Modal opens after decrypt`);
-        assert.equal(
+        assert.strictEqual(
           find('[data-test-encrypted-value="plaintext"]').innerText,
           encodeString('There are many secrets 🤐'),
           `${key}: the ui decodes plaintext`
@@ -236,7 +241,7 @@ const testConvergentEncryption = async function (assert, keyName) {
     },
   ];
 
-  for (let testCase of tests) {
+  for (const testCase of tests) {
     await click('[data-test-transit-action-link="encrypt"]');
 
     find('#plaintext-control .CodeMirror').CodeMirror.setValue(testCase.plaintext);
@@ -258,7 +263,7 @@ const testConvergentEncryption = async function (assert, keyName) {
     }
     // store ciphertext for decryption step
     const copiedCiphertext = find('[data-test-encrypted-value="ciphertext"]').innerText;
-    await click('[data-test-modal-background]');
+    await click('.modal.is-active [data-test-modal-background]');
 
     assert.dom('.modal.is-active').doesNotExist(`${name}: Modal closes after background clicked`);
     await click('[data-test-transit-action-link="decrypt"]');
@@ -275,7 +280,7 @@ const testConvergentEncryption = async function (assert, keyName) {
       testCase.assertAfterDecrypt(keyName);
     }
 
-    await click('[data-test-modal-background]');
+    await click('.modal.is-active [data-test-modal-background]');
 
     assert.dom('.modal.is-active').doesNotExist(`${name}: Modal closes after background clicked`);
   }
@@ -299,12 +304,12 @@ module('Acceptance | transit', function (hooks) {
     await generateTransitKey(keyTypes[0], now);
     await secretListPage.secrets.objectAt(0).menuToggle();
     await settled();
-    assert.equal(secretListPage.menuItems.length, 2, 'shows 2 items in the menu');
+    assert.strictEqual(secretListPage.menuItems.length, 2, 'shows 2 items in the menu');
   });
-  for (let key of keyTypes) {
+  for (const key of keyTypes) {
     test(`transit backend: ${key.type}`, async function (assert) {
       assert.expect(key.convergent ? 43 : 7);
-      let name = await generateTransitKey(key, now);
+      const name = await generateTransitKey(key, now);
       await visit(`vault/secrets/${path}/show/${name}`);
 
       const expectedRotateValue = key.autoRotate ? '30 days' : 'Key will not be automatically rotated';

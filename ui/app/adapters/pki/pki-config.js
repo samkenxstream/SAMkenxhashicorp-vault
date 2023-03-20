@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import AdapterError from '@ember-data/adapter/error';
 import { hash, resolve } from 'rsvp';
 import { capitalize } from '@ember/string';
@@ -23,7 +28,7 @@ export default ApplicationAdapter.extend({
       return;
     }
     const data = snapshot.adapterOptions.fields.reduce((data, field) => {
-      let attr = snapshot.attr(field);
+      const attr = snapshot.attr(field);
       if (attr) {
         serializer.serializeAttribute(snapshot, data, field, attr);
       } else {
@@ -32,7 +37,7 @@ export default ApplicationAdapter.extend({
       return data;
     }, {});
     return this.ajax(url, 'POST', { data }).then((resp) => {
-      let response = resp || {};
+      const response = resp || {};
       response.id = `${snapshot.record.get('backend')}-${snapshot.adapterOptions.method}`;
       return response;
     });

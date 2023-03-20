@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package http
 
 import (
@@ -18,6 +21,7 @@ import (
 	"github.com/hashicorp/vault/api"
 	auditFile "github.com/hashicorp/vault/builtin/audit/file"
 	credUserpass "github.com/hashicorp/vault/builtin/credential/userpass"
+	"github.com/hashicorp/vault/helper/testhelpers/corehelpers"
 	"github.com/hashicorp/vault/internalshared/configutil"
 	"github.com/hashicorp/vault/sdk/helper/consts"
 	"github.com/hashicorp/vault/sdk/helper/logging"
@@ -362,6 +366,85 @@ func TestLogical_ListSuffix(t *testing.T) {
 	}
 }
 
+func TestLogical_ListWithQueryParameters(t *testing.T) {
+	core, _, rootToken := vault.TestCoreUnsealed(t)
+
+	tests := []struct {
+		name          string
+		requestMethod string
+		url           string
+		expectedData  map[string]interface{}
+	}{
+		{
+			name:          "LIST request method parses query parameter",
+			requestMethod: "LIST",
+			url:           "http://127.0.0.1:8200/v1/secret/foo?key1=value1",
+			expectedData: map[string]interface{}{
+				"key1": "value1",
+			},
+		},
+		{
+			name:          "LIST request method parses query multiple parameters",
+			requestMethod: "LIST",
+			url:           "http://127.0.0.1:8200/v1/secret/foo?key1=value1&key2=value2",
+			expectedData: map[string]interface{}{
+				"key1": "value1",
+				"key2": "value2",
+			},
+		},
+		{
+			name:          "GET request method with list=true parses query parameter",
+			requestMethod: "GET",
+			url:           "http://127.0.0.1:8200/v1/secret/foo?list=true&key1=value1",
+			expectedData: map[string]interface{}{
+				"key1": "value1",
+			},
+		},
+		{
+			name:          "GET request method with list=true parses multiple query parameters",
+			requestMethod: "GET",
+			url:           "http://127.0.0.1:8200/v1/secret/foo?list=true&key1=value1&key2=value2",
+			expectedData: map[string]interface{}{
+				"key1": "value1",
+				"key2": "value2",
+			},
+		},
+		{
+			name:          "GET request method with alternate order list=true parses multiple query parameters",
+			requestMethod: "GET",
+			url:           "http://127.0.0.1:8200/v1/secret/foo?key1=value1&list=true&key2=value2",
+			expectedData: map[string]interface{}{
+				"key1": "value1",
+				"key2": "value2",
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req, _ := http.NewRequest(tc.requestMethod, tc.url, nil)
+			req = req.WithContext(namespace.RootContext(nil))
+			req.Header.Add(consts.AuthHeaderName, rootToken)
+
+			lreq, _, status, err := buildLogicalRequest(core, nil, req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if status != 0 {
+				t.Fatalf("got status %d", status)
+			}
+			if !strings.HasSuffix(lreq.Path, "/") {
+				t.Fatal("trailing slash not found on path")
+			}
+			if lreq.Operation != logical.ListOperation {
+				t.Fatalf("expected logical.ListOperation, got %v", lreq.Operation)
+			}
+			if !reflect.DeepEqual(tc.expectedData, lreq.Data) {
+				t.Fatalf("expected query parameter data %v, got %v", tc.expectedData, lreq.Data)
+			}
+		})
+	}
+}
+
 func TestLogical_RespondWithStatusCode(t *testing.T) {
 	resp := &logical.Response{
 		Data: map[string]interface{}{
@@ -395,13 +478,10 @@ func TestLogical_RespondWithStatusCode(t *testing.T) {
 
 func TestLogical_Audit_invalidWrappingToken(t *testing.T) {
 	// Create a noop audit backend
-	var noop *vault.NoopAudit
+	noop := corehelpers.TestNoopAudit(t, nil)
 	c, _, root := vault.TestCoreUnsealedWithConfig(t, &vault.CoreConfig{
 		AuditBackends: map[string]audit.Factory{
 			"noop": func(ctx context.Context, config *audit.BackendConfig) (audit.Backend, error) {
-				noop = &vault.NoopAudit{
-					Config: config,
-				}
 				return noop, nil
 			},
 		},
@@ -555,10 +635,23 @@ func TestLogical_AuditPort(t *testing.T) {
 		},
 	}
 
-	resp, err := c.Logical().Write("kv/data/foo", writeData)
-	if err != nil {
-		t.Fatalf("write request failed, err: %#v, resp: %#v\n", err, resp)
-	}
+	// workaround kv-v2 initialization upgrade errors
+	numFailures := 0
+	corehelpers.RetryUntil(t, 10*time.Second, func() error {
+		resp, err := c.Logical().Write("kv/data/foo", writeData)
+		if err != nil {
+			if strings.Contains(err.Error(), "Upgrading from non-versioned to versioned data") {
+				t.Logf("Retrying fetch KV data due to upgrade error")
+				time.Sleep(100 * time.Millisecond)
+				numFailures += 1
+				return err
+			}
+
+			t.Fatalf("write request failed, err: %#v, resp: %#v\n", err, resp)
+		}
+
+		return nil
+	})
 
 	decoder := json.NewDecoder(auditLogFile)
 
@@ -579,7 +672,7 @@ func TestLogical_AuditPort(t *testing.T) {
 		}
 
 		if _, ok := auditRequest["remote_address"].(string); !ok {
-			t.Fatalf("remote_port should be a number, not %T", auditRequest["remote_address"])
+			t.Fatalf("remote_address should be a string, not %T", auditRequest["remote_address"])
 		}
 
 		if _, ok := auditRequest["remote_port"].(float64); !ok {
@@ -587,8 +680,12 @@ func TestLogical_AuditPort(t *testing.T) {
 		}
 	}
 
-	if count != 4 {
-		t.Fatalf("wrong number of audit entries: %d", count)
+	// We expect the following items in the audit log:
+	// audit log header + an entry for updating sys/audit/file
+	// + request/response per failure (if any) + request/response for creating kv
+	numExpectedEntries := (numFailures * 2) + 4
+	if count != numExpectedEntries {
+		t.Fatalf("wrong number of audit entries expected: %d got: %d", numExpectedEntries, count)
 	}
 }
 

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package cockroachdb
 
 import (
@@ -36,7 +39,7 @@ func prepareCockroachDBTestContainer(t *testing.T) (func(), *Config) {
 	}
 
 	runner, err := docker.NewServiceRunner(docker.RunOptions{
-		ImageRepo:     "cockroachdb/cockroach",
+		ImageRepo:     "docker.mirror.hashicorp.services/cockroachdb/cockroach",
 		ImageTag:      "release-1.0",
 		ContainerName: "cockroachdb",
 		Cmd:           []string{"start", "--insecure"},

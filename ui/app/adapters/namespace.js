@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import ApplicationAdapter from './application';
 
 export default ApplicationAdapter.extend({
@@ -12,12 +17,12 @@ export default ApplicationAdapter.extend({
   },
 
   urlForCreateRecord(modelName, snapshot) {
-    let id = snapshot.attr('path');
+    const id = snapshot.attr('path');
     return this.buildURL(modelName, id);
   },
 
   createRecord(store, type, snapshot) {
-    let id = snapshot.attr('path');
+    const id = snapshot.attr('path');
     return this._super(...arguments).then(() => {
       return { id };
     });

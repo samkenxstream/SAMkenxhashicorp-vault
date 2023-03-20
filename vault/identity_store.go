@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package vault
 
 import (
@@ -15,6 +18,7 @@ import (
 	"github.com/hashicorp/vault/helper/metricsutil"
 	"github.com/hashicorp/vault/helper/namespace"
 	"github.com/hashicorp/vault/helper/storagepacker"
+	"github.com/hashicorp/vault/helper/versions"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/consts"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -112,6 +116,7 @@ func NewIdentityStore(ctx context.Context, core *Core, config *logical.BackendCo
 
 			return nil
 		},
+		RunningVersion: versions.DefaultBuiltinVersion,
 	}
 
 	iStore.oidcCache = newOIDCCache(cache.NoExpiration, cache.NoExpiration)
@@ -168,6 +173,10 @@ func mfaPaths(i *IdentityStore) []*framework.Path {
 		{
 			Pattern: "mfa/method/totp" + genericOptionalUUIDRegex("method_id"),
 			Fields: map[string]*framework.FieldSchema{
+				"method_name": {
+					Type:        framework.TypeString,
+					Description: `The unique name identifier for this MFA method.`,
+				},
 				"method_id": {
 					Type:        framework.TypeString,
 					Description: `The unique identifier for this MFA method.`,
@@ -296,6 +305,10 @@ func mfaPaths(i *IdentityStore) []*framework.Path {
 		{
 			Pattern: "mfa/method/okta" + genericOptionalUUIDRegex("method_id"),
 			Fields: map[string]*framework.FieldSchema{
+				"method_name": {
+					Type:        framework.TypeString,
+					Description: `The unique name identifier for this MFA method.`,
+				},
 				"method_id": {
 					Type:        framework.TypeString,
 					Description: `The unique identifier for this MFA method.`,
@@ -352,6 +365,10 @@ func mfaPaths(i *IdentityStore) []*framework.Path {
 		{
 			Pattern: "mfa/method/duo" + genericOptionalUUIDRegex("method_id"),
 			Fields: map[string]*framework.FieldSchema{
+				"method_name": {
+					Type:        framework.TypeString,
+					Description: `The unique name identifier for this MFA method.`,
+				},
 				"method_id": {
 					Type:        framework.TypeString,
 					Description: `The unique identifier for this MFA method.`,
@@ -408,6 +425,10 @@ func mfaPaths(i *IdentityStore) []*framework.Path {
 		{
 			Pattern: "mfa/method/pingid" + genericOptionalUUIDRegex("method_id"),
 			Fields: map[string]*framework.FieldSchema{
+				"method_name": {
+					Type:        framework.TypeString,
+					Description: `The unique name identifier for this MFA method.`,
+				},
 				"method_id": {
 					Type:        framework.TypeString,
 					Description: `The unique identifier for this MFA method.`,
@@ -1094,7 +1115,7 @@ func (i *IdentityStore) CreateEntity(ctx context.Context) (*identity.Entity, err
 			nsLabel,
 		})
 
-	return entity, nil
+	return entity.Clone()
 }
 
 // CreateOrFetchEntity creates a new entity. This is used by core to
@@ -1223,7 +1244,7 @@ func (i *IdentityStore) CreateOrFetchEntity(ctx context.Context, alias *logical.
 // names match or no metadata is different, -1 is returned.
 func changedAliasIndex(entity *identity.Entity, alias *logical.Alias) int {
 	for i, a := range entity.Aliases {
-		if a.Name == alias.Name && !strutil.EqualStringMaps(a.Metadata, alias.Metadata) {
+		if a.Name == alias.Name && a.MountAccessor == alias.MountAccessor && !strutil.EqualStringMaps(a.Metadata, alias.Metadata) {
 			return i
 		}
 	}

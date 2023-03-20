@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package couchdb
 
 import (
@@ -86,7 +89,8 @@ func prepareCouchdbDBTestContainer(t *testing.T) (func(), *couchDB) {
 	}
 
 	runner, err := docker.NewServiceRunner(docker.RunOptions{
-		ImageRepo:       "couchdb",
+		ContainerName:   "couchdb",
+		ImageRepo:       "docker.mirror.hashicorp.services/library/couchdb",
 		ImageTag:        "1.6",
 		Ports:           []string{"5984/tcp"},
 		DoNotAutoRemove: true,

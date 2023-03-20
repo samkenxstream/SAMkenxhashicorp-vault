@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import { inject as service } from '@ember/service';
 import Component from '@ember/component';
 import { get } from '@ember/object';
@@ -37,6 +42,10 @@ export default Component.extend({
   loading: false,
 
   actions: {
+    handleCrlTtl({ enabled, goSafeTimeString }) {
+      this.config.disable = !enabled; // when TTL enabled, config disable=false
+      this.config.expiry = goSafeTimeString;
+    },
     save(section) {
       this.set('loading', true);
       const config = this.config;

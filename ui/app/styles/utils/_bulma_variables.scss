@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 // Color overrides
 $light: $grey-lightest;
 $primary: $grey-dark;
@@ -91,3 +96,6 @@ $speed-slow: $speed * 2;
 // Wizard
 $wizard-progress-bar-height: 6px;
 $wizard-progress-check-size: 16px;
+
+// Div height
+$medium-height: 125px;

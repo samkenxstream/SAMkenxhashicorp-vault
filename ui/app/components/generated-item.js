@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import AdapterError from '@ember-data/adapter/error';
 import { inject as service } from '@ember/service';
 import Component from '@ember/component';
@@ -64,7 +69,7 @@ export default Component.extend({
       this.model.fieldGroups.forEach((element) => {
         if (element.default) {
           element.default.forEach((attr) => {
-            let fieldValue = attr.options && attr.options.fieldValue;
+            const fieldValue = attr.options && attr.options.fieldValue;
             if (fieldValue) {
               this.model[attr.name] = this.model[fieldValue];
             }

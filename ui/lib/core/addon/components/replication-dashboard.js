@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { clusterStates } from 'core/helpers/cluster-states';
@@ -82,7 +87,7 @@ export default Component.extend({
       // when DR and Performance is enabled on the same cluster,
       // the states should always be the same
       // we are leaving this console log statement to be sure
-      console.log('DR State: ', drState, 'Performance State: ', performanceState);
+      console.log('DR State: ', drState, 'Performance State: ', performanceState); // eslint-disable-line
     }
 
     return drState;

@@ -1,7 +1,10 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 executor: go-machine
 steps:
-  - setup-go
   - checkout
+  - setup-go
   - restore_go_mod_cache
   - go_test:
       log_dir: "/tmp/testlogs"

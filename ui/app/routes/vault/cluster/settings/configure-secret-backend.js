@@ -1,14 +1,21 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import AdapterError from '@ember-data/adapter/error';
 import { set } from '@ember/object';
 import Route from '@ember/routing/route';
-
+import { inject as service } from '@ember/service';
 const CONFIGURABLE_BACKEND_TYPES = ['aws', 'ssh', 'pki'];
 
 export default Route.extend({
+  store: service(),
+
   model() {
     const { backend } = this.paramsFor(this.routeName);
     return this.store.query('secret-engine', { path: backend }).then((modelList) => {
-      let model = modelList && modelList.get('firstObject');
+      const model = modelList && modelList.get('firstObject');
       if (!model || !CONFIGURABLE_BACKEND_TYPES.includes(model.get('type'))) {
         const error = new AdapterError();
         set(error, 'httpStatus', 404);

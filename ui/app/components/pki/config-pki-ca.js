@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import { inject as service } from '@ember/service';
 import { not } from '@ember/object/computed';
 import Component from '@ember/component';
@@ -70,7 +75,7 @@ export default Component.extend({
 
   willDestroy() {
     const ca = this.model;
-    if (ca) {
+    if (ca && !ca.isDestroyed && !ca.isDestroying) {
       ca.unloadRecord();
     }
     this._super(...arguments);

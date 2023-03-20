@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package vault
 
 import (
@@ -147,6 +150,17 @@ type ControlGroupHCL struct {
 type ControlGroup struct {
 	TTL     time.Duration
 	Factors []*ControlGroupFactor
+}
+
+func (c *ControlGroup) Clone() (*ControlGroup, error) {
+	clonedControlGroup, err := copystructure.Copy(c)
+	if err != nil {
+		return nil, err
+	}
+
+	cg := clonedControlGroup.(*ControlGroup)
+
+	return cg, nil
 }
 
 type ControlGroupFactor struct {

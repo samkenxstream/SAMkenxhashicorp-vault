@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package vault
 
 import (
@@ -38,6 +41,9 @@ func (ts *TokenStore) loadSSCTokensGenerationCounter(ctx context.Context) error 
 }
 
 func (ts *TokenStore) UpdateSSCTokensGenerationCounter(ctx context.Context) error {
+	if err := ts.loadSSCTokensGenerationCounter(ctx); err != nil {
+		return err
+	}
 	ts.sscTokensGenerationCounter.Counter += 1
 	if ts.sscTokensGenerationCounter.Counter <= 0 {
 		// Don't store the 0 value
